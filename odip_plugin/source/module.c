@@ -93,7 +93,6 @@ int DI_EmulateCmd(u32 *inbuf, u32 *outbuf, u32 outbuf_size)
 {
 	int res = 0;
 
-
 	u8 cmd = ((u8 *) inbuf)[0];
 
 #ifdef DEBUG
@@ -147,6 +146,7 @@ handleReqError:
 			case IOCTL_DI_GETBASE:
 				outbuf[0] = dip.base;
 				os_sync_after_write(outbuf, outbuf_size);
+				res = 0;
 				break;
 
 			case IOCTL_DI_SETFORCEREAD:
@@ -157,9 +157,10 @@ handleReqError:
 			case IOCTL_DI_GETFORCEREAD:
 				outbuf[0] = dip.low_read_from_device;
 				os_sync_after_write(outbuf, outbuf_size);
+				res = 0;
 				break;
 
-			case IOCTL_DI_SETUSBMODE: {  // DONE!!!
+			case IOCTL_DI_SETUSBMODE: {  
 				dip.has_id = inbuf[1];
 				// Copy id
 				if (dip.has_id) {
@@ -173,6 +174,7 @@ handleReqError:
 			case IOCTL_DI_GETUSBMODE:
 				outbuf[0] = dip.has_id;
 				os_sync_after_write(outbuf, outbuf_size);
+				res = 0;
 				break;
 
 			case IOCTL_DI_DISABLERESET:
@@ -221,6 +223,7 @@ handleReqError:
 				volatile unsigned long *dvdio = (volatile unsigned long *) 0xD006000;	
 				outbuf[0] = dvdio[1] & (~0x00000001); 
 				os_sync_after_write(outbuf, outbuf_size);
+				res = 0;
 				break;
 			}
 
@@ -228,14 +231,14 @@ handleReqError:
 				res = DIP_CustomCommand((u8 *)((u32) inbuf[1] & 0x7FFFFFFF), (u8 *) outbuf);				
 				break;
 
-			case IOCTL_DI_OFFSET:
+			case IOCTL_DI_OFFSET: {
 				if (dip.dvdrom_mode || dip.has_id) {
 					dip.offset =  ((inbuf[1] << 30 ) | inbuf[2]) & 0xFFFF8000; // ~(SECTOR_SIZE >> 2)
 					res = 0;
 				} else 
 					goto call_original_di;
 				break;
-
+			}
 			case IOCTL_DI_REPORTKEY:
 				if (!dip.dvdrom_mode && !dip.has_id) 
 					goto call_original_di;
@@ -252,12 +255,12 @@ handleReqError:
 						goto call_original_di;
 				}
 				ios_memcpy((u8 *) outbuf, bca_bytes, BCADATA_SIZE);
-				os_sync_after_write(outbuf,64);
+				os_sync_after_write(outbuf,BCADATA_SIZE);
 				res = 0;
 				break;
 			}
 
-			case IOCTL_DI_READ:
+			case IOCTL_DI_READ: {
 				dip.reading = 1;
 				if (!dip.low_read_from_device) 
 					res = handleDiCommand(inbuf, outbuf, outbuf_size);
@@ -267,7 +270,7 @@ handleReqError:
 				if (res == 0) 
 					dummy_function(outbuf, outbuf_size);
 				break;
-
+			}
 			case IOCTL_DI_READID: {
 				u32 cmdRes;
 				u32 dvdRomModeNeeded;
@@ -288,7 +291,7 @@ handleReqError:
 				res = read_id_from_image(outbuf, outbuf_size);
 				break;
 			}
-			case IOCTL_DI_RESET:
+			case IOCTL_DI_RESET: {
 				if (dip.disableReset) {
 					res = 0;
 					break;
@@ -299,13 +302,14 @@ handleReqError:
 				dip.base = 0;
 				dip.offset = 0;
 				dip.currentError = 0;
+
 				if (!dip.has_id) 
 					goto call_original_di;
 
 				DIP_StopMotor();
 				res = usb_open_device(dip.has_id - 1, &(dip.id[0]), dip.partition);
 				break;
-
+			}
 			case IOCTL_DI_UNENCREAD:
 			case IOCTL_DI_LOWREAD:
 			case IOCTL_DI_READDVD: {
