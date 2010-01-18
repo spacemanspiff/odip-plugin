@@ -87,7 +87,7 @@ _callOriginal:
 	.code 16
 	.thumb_func
 handleDiCommand:
-	push	{r4,r7,lr}
+	push	{r4-r7,lr}
 	mov 	r7, r11
 	mov	r6, r10
 	mov	r5, r9
