@@ -19,7 +19,7 @@ Usandolo desde el uLoader, en modo DVD, en mi Wii con chip el juego se carga
 correctamente.
 
 En modo USB, se detectan correctamente las particiones y cargue exitosamente 2
-juegos. No está funcionando la instalación de juegos.
+juegos. La instalación de juegos funciona correctamente.
 
 Tener en cuenta que esto es un producto de analizar el código binario y
 generar código C, por lo tanto puede haber muchos errores, mi entendimiento

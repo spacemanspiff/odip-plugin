@@ -63,15 +63,18 @@ int read_id_from_image(u32 *outbuf, u32 outbuf_size)
 	u32 res;
 	u32 lba = dip.offset + dip.base;
 
+	res = read_from_device(outbuf, READINFO_SIZE_DATA, lba);
+	/* inlined read_from_device...
 	if (dip.has_id)
 		res = usb_read_device((u8 *)outbuf, READINFO_SIZE_DATA, lba);
 	else if (dip.dvdrom_mode)
 		res = DIP_ReadDVDRom((u8 *) outbuf, READINFO_SIZE_DATA, lba);
 	else
 		res = DIP_ReadDVD(outbuf, READINFO_SIZE_DATA, lba);
+	*/
 
 	if (res == 0 && outbuf[6] == WII_DVD_SIGNATURE) {
-		volatile u8 *dvd_cdata = (volatile u8 *) addr_dvd_read_controlling_data;  // DVD_Controlling_data - cambiar al valor de la tabla inicial del dip-plugin
+		volatile u8 *dvd_cdata = (volatile u8 *) addr_dvd_read_controlling_data;  
 
 		*dvd_cdata = 1;
 		if (dvd_cdata[1] == 0)
@@ -79,7 +82,6 @@ int read_id_from_image(u32 *outbuf, u32 outbuf_size)
 	}
 	return res;
 }
-
 
 /*
 Ioctl 0x13 -> usada por la función Disc_USB_DVD_Wait(), checkea si hay disco montado desde la unidad DVD. Solo se usa en uLoader
@@ -303,7 +305,7 @@ handleReqError:
 				dip.offset = 0;
 				dip.currentError = 0;
 
-				if (!dip.has_id) 
+				if (!dip.has_id)  
 					goto call_original_di;
 
 				DIP_StopMotor();
@@ -313,13 +315,13 @@ handleReqError:
 			case IOCTL_DI_UNENCREAD:
 			case IOCTL_DI_LOWREAD:
 			case IOCTL_DI_READDVD: {
-				u32 offset = inbuf[1];
-				u32 len = inbuf[2];
+				u32 offset = inbuf[2];
+				u32 len = inbuf[1];
 				if (cmd == IOCTL_DI_READDVD) {
-					offset = offset << 11;
-					len = len << 9;
+					offset = offset << 9;
+					len = len << 11;
 				}
-				res = read_from_device(outbuf, offset, len);
+				res = read_from_device(outbuf, len, offset);
 				if (res == 0 && dip.reading == 0)
 						dummy_function(outbuf, outbuf_size);
 				break;
