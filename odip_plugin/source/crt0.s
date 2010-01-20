@@ -90,9 +90,17 @@ addr_ios_printf:
 	.long	0        @ reserved @
 	.long	0        @ reserved @
 	.long	0        @ reserved @
-	.long	0        @ reserved @
+	.long	filename_data
 	.long	bca_bytes
 	.long	in_ES_ioctlv
+
+	.global mem_bss
+mem_bss:
+	.long _ini_bss
+
+	.global mem_bss_len
+mem_bss_len:
+	.long _len_bss
 
 	.align 4
 _start:

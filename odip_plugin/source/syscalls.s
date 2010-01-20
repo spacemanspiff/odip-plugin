@@ -38,6 +38,16 @@ os_sync_before_read:
 	syscall 0x3F
 
 	.code 32
+	.global os_heap_alloc_aligned
+os_heap_alloc_aligned:
+	syscall 0x19
+
+	.code 32
+	.global os_heap_free
+os_heap_free:
+	syscall 0x1a
+
+	.code 32
 	.global os_open
 os_open:
 	syscall 0x1c
@@ -56,6 +66,13 @@ os_read:
 	.global os_write
 os_write:
 	syscall 0x1f
+
+	
+	.code 32
+	.global os_seek
+os_seek:
+	syscall 0x20
+
 
 	.code 32
 	.global os_ioctlv

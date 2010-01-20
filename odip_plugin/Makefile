@@ -99,7 +99,7 @@ LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 
 ARCH	=	-mcpu=arm9tdmi -mtune=arm9tdmi -mthumb -mthumb-interwork -mbig-endian
 
-CFLAGS	+= -g $(ARCH) $(INCLUDE) -fno-strict-aliasing -Wall -O3 -fomit-frame-pointer -ffast-math -fverbose-asm -Wpointer-arith -Winline -Wundef -g -ffunction-sections -fdata-sections -fno-exceptions 
+CFLAGS	+= -g $(ARCH) $(INCLUDE) -fno-strict-aliasing -Wall -Os -fomit-frame-pointer -ffast-math -fverbose-asm -Wpointer-arith -Winline -Wundef -g -ffunction-sections -fdata-sections -fno-exceptions 
 CFLAGS	+= -Wstrict-prototypes
 
 
@@ -110,7 +110,8 @@ LDFLAGS	= -g $(ARCH) -specs=$(SPECS) -T$(LINKSCRIPT)  $(LIBPATHS) $(LIBS) -Wl,--
 
 $(OUTPUT).bin: $(TARGET).elf
 	@echo Stripping plugin $(notdir $@)
-	$(STRIPIOSPLUGIN) $< $@
+	arm-eabi-objcopy  -O binary $(TARGET).elf $(OUTPUT).bin
+	#$(STRIPIOSPLUGIN) $< $@
 
 
 %.elf: $(OFILES)

@@ -18,9 +18,9 @@
 
 	.align 4
 
-	.global ios_alloc_aligned
+	.global dip_alloc_aligned
 	.code 32
-ios_alloc_aligned:
+dip_alloc_aligned:
 	stmfd	sp!, {r7, lr}
 	ldr	r7, =addr_ios_shared_alloc_aligned
 	ldr	r7, [r7]
@@ -28,9 +28,9 @@ ios_alloc_aligned:
 	ldmfd	sp!, {r7, lr}
 	bx	lr
 
-	.global ios_free
+	.global dip_free
 	.code 32
-ios_free:
+dip_free:
 	stmfd	sp!, {r7, lr}
 	ldr	r7, =addr_ios_shared_free
 	ldr	r7, [r7]
@@ -38,9 +38,9 @@ ios_free:
 	ldmfd	sp!, {r7, lr}
 	bx	lr
 
-	.global ios_memcpy
+	.global dip_memcpy
 	.code 32
-ios_memcpy:
+dip_memcpy:
 	stmfd	sp!, {r7, lr}
 	ldr	r7, =addr_ios_memcpy
 	ldr	r7, [r7]
@@ -48,9 +48,9 @@ ios_memcpy:
 	ldmfd	sp!, {r7, lr}
 	bx	lr
 
-	.global ios_fatal_di_error
+	.global dip_fatal_di_error
 	.code 32
-ios_fatal_di_error:
+dip_fatal_di_error:
 	stmfd	sp!, {r7, lr}
 	ldr	r7, =addr_ios_fatal_di_error
 	ldr	r7, [r7]
@@ -58,9 +58,9 @@ ios_fatal_di_error:
 	ldmfd	sp!, {r7, lr}
 	bx	lr
 
-	.global ios_doReadHashEncryptedState
+	.global dip_doReadHashEncryptedState
 	.code 32
-ios_doReadHashEncryptedState:
+dip_doReadHashEncryptedState:
 	stmfd	sp!, {r7, lr}
 	ldr	r7, =addr_ios_doReadHashEncryptedState
 	ldr	r7, [r7]
@@ -68,9 +68,9 @@ ios_doReadHashEncryptedState:
 	ldmfd	sp!, {r7, lr}
 	bx	lr
 
-	.global ios_printf
+	.global dip_printf
 	.code 32
-ios_printf:
+dip_printf:
 	stmfd	sp!, {r7, lr}
 	ldr	r7, =addr_ios_printf
 	ldr	r7, [r7]

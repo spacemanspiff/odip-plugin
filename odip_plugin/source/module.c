@@ -1,5 +1,6 @@
 /*
  *  Copyright (C) 2010 Spaceman Spiff
+ *  Copyright (C) 2010 Hermes
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,7 +28,7 @@
 #ifdef DEBUG
 #include <debug.h>
 #endif
-dipstruct dip;
+dipstruct dip= {0};
 
 #define WII_DVD_SIGNATURE 0x5D1C9EA3
 
@@ -45,9 +46,17 @@ void dummy_function(u32 *outbuf, u32 outbuf_size)
 {
 }
 
-int read_from_device(u32 *outbuf, u32 size, u32 lba)
+// CISO mem area
+int ciso_lba=-1;
+int ciso_size=0;
+u32 *table_lba=NULL;
+
+extern s32 fat_mode;
+
+u8 mem_index[2048] __attribute__ ((aligned (32)));
+
+int read_from_device_out(void *outbuf, u32 size, u32 lba)
 {
-	lba += dip.base + dip.offset;
 
 	if (dip.has_id) 
 		return usb_read_device((u8 *)outbuf, size, lba);
@@ -58,30 +67,133 @@ int read_from_device(u32 *outbuf, u32 size, u32 lba)
 	return DIP_ReadDVD((u8 *) outbuf, size, lba);
 }
 
+int read_from_device(void *outbuf, u32 size, u32 lba)
+{
+	int r=-1;
+	int l;
+
+	lba += dip.base + dip.offset;
+
+	if (dip.has_id) {
+		/* Free memory */
+		if(fat_mode<=0)	{
+			if (table_lba)
+				os_heap_free(0, table_lba);
+			table_lba=NULL;
+
+			ciso_lba=-1;
+		}
+		return  read_from_device_out(outbuf, size, lba);
+	}
+	
+	if(ciso_lba>=0 && ciso_lba!=0x7fffffff)	{
+		u32 lba_glob=0;
+	
+		if(table_lba==NULL) 
+			table_lba= (void *) os_heap_alloc_aligned(0, 2048*4, 32); // from global heap
+		//ciso_lba=265;
+		/* Allocate memory */
+		u8 * buff =  dip_alloc_aligned(0x800, 32);
+		if (!buff)
+			ciso_lba=-1;
+
+		if(ciso_lba>=0)	{
+			while(1) {
+				lba_glob=(ciso_lba+16)<<9;
+				
+				r = read_from_device_out(buff, 2048, ciso_lba<<9); // read 16 cached sectors
+				if(r<0) {
+					ciso_lba=-1;
+					break;
+				}
+
+				if ((buff[0]=='C' && buff[1]=='I' && buff[2]=='S' && buff[3]=='O')) 
+					break;
+				else {
+					if (ciso_lba!=0) {
+						ciso_lba=0;
+						continue;
+					}
+					ciso_lba=-1;
+				}
+				
+				break;
+			}
+		}
+		// if(ciso_lba>=0 && table_lba && buff) ciso_lba=0x7fffffff;
+		if (ciso_lba>=0 && table_lba) {
+			ciso_size=(((u32)buff[4])+(((u32)buff[5])<<8)+(((u32)buff[6])<<16)+(((u32)buff[7])<<24))/4;
+			dip_memset(mem_index,0,2048);
+
+			for(l=0;l<16384;l++) {
+				if (((l+8) & 2047)==0 && (l+8)>=2048) {
+					r = read_from_device_out(buff, 2048, (ciso_lba+((l+8)>>11))<<9); // read 16 cached sectors
+					if(r<0) {
+						ciso_lba=-1;
+						break;
+					}
+				}
+
+				if ((l & 7)==0) 
+					table_lba[l>>3]=lba_glob;
+				
+				if (buff[(8+l) & 2047]) {
+					mem_index[l>>3]|=1<<(l & 7);
+					lba_glob+=ciso_size;
+				}
+			}
+
+			if(ciso_lba>=0) 
+				ciso_lba=0x7fffffff;
+		}
+		
+		/* Free memory */
+		if (buff)
+			dip_free(buff);
+	}
+
+	if(ciso_lba==0x7fffffff) {
+		u32 temp=(lba)/ciso_size;
+		u32 read_lba=table_lba[temp>>3];
+		for (l=0;l<(temp & 7);l++) 
+			if ((mem_index[temp>>3]>>l) & 1) 
+				read_lba+=ciso_size;
+
+		read_lba+=(lba) & ((ciso_size)-1);
+	
+		r=read_from_device_out(outbuf, size, read_lba); 
+		if (r<0) 
+			return r;
+	} else {
+		/* Free memory */
+		if (table_lba)
+			os_heap_free(0, table_lba);
+
+		table_lba=NULL;
+
+		return read_from_device_out(outbuf, size, lba);
+	}
+	return r;
+}
 int read_id_from_image(u32 *outbuf, u32 outbuf_size)
 {
 	u32 res;
-	u32 lba = dip.offset + dip.base;
 
-	res = read_from_device(outbuf, READINFO_SIZE_DATA, lba);
-	/* inlined read_from_device...
-	if (dip.has_id)
-		res = usb_read_device((u8 *)outbuf, READINFO_SIZE_DATA, lba);
-	else if (dip.dvdrom_mode)
-		res = DIP_ReadDVDRom((u8 *) outbuf, READINFO_SIZE_DATA, lba);
-	else
-		res = DIP_ReadDVD(outbuf, READINFO_SIZE_DATA, lba);
-	*/
+	res= read_from_device(outbuf, READINFO_SIZE_DATA, 0);
+	if(res<0) return res;
 
-	if (res == 0 && outbuf[6] == WII_DVD_SIGNATURE) {
-		volatile u8 *dvd_cdata = (volatile u8 *) addr_dvd_read_controlling_data;  
+	if (outbuf[6] == WII_DVD_SIGNATURE) {
+		
+		extern u8 * addr_dvd_read_controlling_data;
+		
+		addr_dvd_read_controlling_data[0] = 1;
 
-		*dvd_cdata = 1;
-		if (dvd_cdata[1] == 0)
-			ios_doReadHashEncryptedState();
+		if (!addr_dvd_read_controlling_data[1])
+			dip_doReadHashEncryptedState();
 	}
 	return res;
 }
+
 
 /*
 Ioctl 0x13 -> usada por la función Disc_USB_DVD_Wait(), checkea si hay disco montado desde la unidad DVD. Solo se usa en uLoader
@@ -90,6 +202,11 @@ Ioctl 0x14 -> equivale a Ioctl 0x88, pero exceptuando el uso de DVD, devuelve un
 
 Ioctl 0x15 -> equivale a Ioctl 0x7a y devuelve el registro tal cual, exceptuando el bit 0 (para indicar la presencia del disco siempre)
  */
+
+static int _noinit=1;
+
+extern void * mem_bss;
+extern int mem_bss_len;
 
 int DI_EmulateCmd(u32 *inbuf, u32 *outbuf, u32 outbuf_size)
 {
@@ -101,30 +218,33 @@ int DI_EmulateCmd(u32 *inbuf, u32 *outbuf, u32 outbuf_size)
 	s_printf("DIP::DI_EmulateCmd(%x, %x, %x)", cmd, outbuf, outbuf_size);
 #endif
 
-	if (cmd == IOCTL_DI_REQERROR)
-		goto handleReqError;
-	
-	dip.currentError = 0;
+	if(_noinit) {
+		dip_memset(mem_bss, 0, mem_bss_len);
+		os_sync_after_write(mem_bss, mem_bss_len);
+		_noinit=0;
+	}
+
+	if (cmd != IOCTL_DI_REQERROR)
+		dip.currentError = 0;
 
 	switch (cmd) {
-			case IOCTL_DI_REQERROR:
-handleReqError:
-				if (dip.currentError != 0) {
-					if (!dip.has_id)
-						goto call_original_di;
-
-					dip_memset((u8 *) outbuf, 0, outbuf_size);
-					outbuf[0] = dip.currentError;
-					os_sync_after_write(outbuf, outbuf_size);
-					res = 0;
-				}
-				break;
+			case IOCTL_DI_REQERROR:	 {
+				 if (dip.currentError || dip.has_id) {
+					 dip_memset((u8 *) outbuf, 0, outbuf_size);
+					 outbuf[0] = dip.currentError;
+					 os_sync_after_write(outbuf, outbuf_size);
+					 res = 0;
+				 } else 
+				 	goto call_original_di;
+				break
+			}
 
 			case IOCTL_DI_SEEK:
-				if (!dip.dvdrom_mode) { 
-					res = 0;
-					break;
+				res = 0;
+				if (!dip.dvdrom_mode && !dip.has_id) { 
+					res = handleDiCommand(inbuf, outbuf, outbuf_size);
 				}
+				break;
 			case IOCTL_DI_WAITCOVERCLOSE:
 				if (!dip.has_id)
 					goto call_original_di;
@@ -132,7 +252,7 @@ handleReqError:
 				break;
 
 			case IOCTL_DI_STREAMING:
-				if (dip.dvdrom_mode ||
+				if (!dip.dvdrom_mode &&
 					!dip.has_id) 
 					goto call_original_di;
 				dip_memset((u8*) outbuf, 0, outbuf_size);
@@ -166,7 +286,7 @@ handleReqError:
 				dip.has_id = inbuf[1];
 				// Copy id
 				if (dip.has_id) {
-					ios_memcpy(dip.id, (u8 *)&(inbuf[2]), 6);
+					dip_memcpy(dip.id, (u8 *)&(inbuf[2]), 6);
 				}
 				dip.partition = inbuf[5];
 				res = 0;
@@ -187,36 +307,28 @@ handleReqError:
 			case IOCTL_DI_13:
 			case IOCTL_DI_14: {
 				volatile unsigned long *dvdio = (volatile unsigned long *) 0xD006000;	
+
 				if (outbuf == NULL) {
 					res = 0;
 					break;
 				}
 				if (cmd == 0x13) {
-					if (!dip.has_id) {
-						outbuf[0] = (dvdio[1] << 31)?0:2; 
+					if (dip.has_id && usb_is_dvd) {
+						outbuf[0] = (usb_dvd_inserted() == 0)?0:2;
 					} else {
-						if (usb_is_dvd) {
-							outbuf[0] = (usb_dvd_inserted() == 0)?0:2;		
-						} else {
-							if (usb_device_fd > 0)
-								outbuf[0] = 2;
-							else {
-								outbuf[0] = (dvdio[1] << 31)?0:2; 
-							}
-						}
+						if (!dip.has_id || usb_device_fd<0) outbuf[0] = (dvdio[1] & 1)?0:2;
+						else outbuf[0] = 2;
 					}
 				} else {
+					
 					// ioctl 0x14
-					if (!dip.has_id) {
-						outbuf[0] = (dvdio[1] << 31)?0:2; 
-					} else {
-						if (usb_device_fd > 0)
-							outbuf[0] = 2;
-						else {
-							outbuf[0] = (dvdio[1] << 31)?0:2; 
-						}
+					if (!dip.has_id || usb_device_fd<0) 
+						outbuf[0] = (dvdio[1] & 1)?0:2;
+					else {
+						outbuf[0] = 0x2;
 					}
 				}
+
 				os_sync_after_write(outbuf, outbuf_size);
 				res = 0;
 				break;
@@ -244,7 +356,7 @@ handleReqError:
 			case IOCTL_DI_REPORTKEY:
 				if (!dip.dvdrom_mode && !dip.has_id) 
 					goto call_original_di;
-				res = 0xA0 << 8;
+				res = 0xA000;
 				dip.currentError = 0x53100;
 				break;
 
@@ -256,7 +368,7 @@ handleReqError:
 					if (cont == 64)
 						goto call_original_di;
 				}
-				ios_memcpy((u8 *) outbuf, bca_bytes, BCADATA_SIZE);
+				dip_memcpy((u8 *) outbuf, bca_bytes, BCADATA_SIZE);
 				os_sync_after_write(outbuf,BCADATA_SIZE);
 				res = 0;
 				break;
@@ -269,28 +381,20 @@ handleReqError:
 				else
 					res = read_from_device(outbuf, inbuf[1], inbuf[2]);
 				dip.reading = 0;
-				if (res == 0) 
-					dummy_function(outbuf, outbuf_size);
+				
 				break;
 			}
 			case IOCTL_DI_READID: {
-				u32 cmdRes;
-				u32 dvdRomModeNeeded;
-				if (dip.has_id) {
-					cmdRes = 0;
-					dvdRomModeNeeded = 0;
-				} else {
+				u32 cmdRes = 0;
+
+				if (!dip.has_id)
 					cmdRes = handleDiCommand(inbuf, outbuf, outbuf_size);
-					dvdRomModeNeeded = (cmdRes==0)?0:1;
-				}
-				if (!(dip.base || dip.offset) && cmdRes == 0 &&
-					!dip.has_id) {
-						dip.dvdrom_mode = dvdRomModeNeeded;	
-						res = 0;
-						break;
-				}
-				dip.dvdrom_mode = dvdRomModeNeeded;
-				res = read_id_from_image(outbuf, outbuf_size);
+
+				if (cmdRes || (dip.base | dip.offset) || dip.has_id || ((u32 *) outbuf)[6] != WII_DVD_SIGNATURE) {
+					dip.dvdrom_mode = (cmdRes==0)?0:1;
+					res = read_id_from_image(outbuf, outbuf_size);
+				} else
+					dip.dvdrom_mode = 0;
 				break;
 			}
 			case IOCTL_DI_RESET: {
@@ -305,8 +409,10 @@ handleReqError:
 				dip.offset = 0;
 				dip.currentError = 0;
 
-				if (!dip.has_id)  
+				if (!dip.has_id) {
+					ciso_lba=dip.partition-1;
 					goto call_original_di;
+				}
 
 				DIP_StopMotor();
 				res = usb_open_device(dip.has_id - 1, &(dip.id[0]), dip.partition);
@@ -322,8 +428,8 @@ handleReqError:
 					len = len << 11;
 				}
 				res = read_from_device(outbuf, len, offset);
-				if (res == 0 && dip.reading == 0)
-						dummy_function(outbuf, outbuf_size);
+			/*	if (res == 0 && dip.reading == 0)
+						dummy_function(outbuf, outbuf_size);*/
 				break;
 			}
 

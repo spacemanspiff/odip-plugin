@@ -50,8 +50,8 @@ void  os_get_key(s32 keyid, void *out);
 void *os_virt_to_phys(void *ptr);
 
 /* Prototypes of functions exported from the hacked IOS */
-void ios_free(void *);
-void ios_doReadHashEncryptedState(void);
-u32 *ios_memcpy(u8 *, const u8 *, u32);
-void *ios_alloc_aligned(u32, u32);
+void dip_free(void *);
+void dip_doReadHashEncryptedState(void);
+u32 *dip_memcpy(u8 *, const u8 *, u32);
+void *dip_alloc_aligned(u32, u32);
 #endif

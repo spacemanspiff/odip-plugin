@@ -8,7 +8,7 @@ int DIP_ReadDVDVideo(void *dst, u32 len, u32 lba);
 int DIP_ReadDVD(void *dst, u32 len, u32 sector);
 int DIP_ReadDVDRom(u8 *outbuf, u32 len, u32 offset);
 
-extern u32 addr_dvd_read_controlling_data;
+extern u8 * addr_dvd_read_controlling_data;
 /*
 int DI_Inquiry(void *outbuf);
 int DI_Reset(void);

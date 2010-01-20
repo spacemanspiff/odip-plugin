@@ -1,5 +1,6 @@
 /*
  *  Copyright (C) 2010 Spaceman Spiff
+ *  Copyright (C) 2010 Hermes
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -43,14 +44,14 @@ int DIP_CustomCommand(u8 *cmd, u8 *ans)
 {
 	volatile unsigned long *dvdio = (volatile unsigned long *) DVDIO_ADDR;
 
-	ios_memcpy((u8 *) dvdio, cmd, DVDIO_SIZE);
+	dip_memcpy((u8 *) dvdio, cmd, DVDIO_SIZE);
 	os_sync_after_write((u8 *) dvdio, DVDIO_SIZE);
 
 	// DI Control Register, wait until ready
 	while (dvdio[7] & 1)      // 0xD00601C
 		;
 
-	ios_memcpy(ans, (u8 *) dvdio, DVDIO_SIZE);
+	dip_memcpy(ans, (u8 *) dvdio, DVDIO_SIZE);
 	os_sync_after_write(ans, DVDIO_SIZE);
 
 	return dvdio[8];          // 0xD006020
@@ -70,7 +71,7 @@ int DIP_ReadDVDVideo(void *dst, u32 len, u32 lba)
 		os_sync_before_read(dst, len);
 		res = handleDiCommand(inbuf, dst, len);
 		tries++;
-	} while (res != 0 || tries < 15);
+	} while (res  && tries < 32);
 	return res;
 }
 
@@ -97,35 +98,34 @@ int DIP_ReadDVDRom(u8 *outbuf, u32 len, u32 offset)
 		return 0;
 
 	u32 lba = offset >> 9; // offset / 512 
-	u32 size = len;
+	u32 size;
 	
-	while (cnt < size) { 
+	while (cnt < len) { 
 		u32 skip;
 		size = len - cnt;
 
 		skip = (offset > (lba << 9)) ? (offset - (lba << 9)) << 2 : 0;
 
-		outbuf = outbuf + cnt;
-		res = DIP_adjust_read_size(outbuf, size, SECTOR_SIZE);
+		res = DIP_adjust_read_size(outbuf+ cnt, size, SECTORSIZE);
 
 		if (skip || !res) {
 			if ((skip + size) > SECTORSIZE) 
 				size = SECTORSIZE - skip;
-			u8 *mem = ios_alloc_aligned(SECTORSIZE, 0x20);
+			u8 *mem = dip_alloc_aligned(SECTORSIZE, 0x20);
 			if (!mem)
 				return -1;
 
 			res = DIP_ReadDVDVideo(mem, SECTORSIZE, lba);
 			if (res == 0) {
-				ios_memcpy(outbuf, mem + skip, size);
-				os_sync_after_write(outbuf, size);
+				dip_memcpy(outbuf+cnt, mem + skip, size);
+				os_sync_after_write(outbuf+cnt, size);
 			}
-			ios_free(mem);
+			dip_free(mem);
 		} else {
 			size = res;
 			if (size >= MAX_SIZE_DI)
 				size = MAX_SIZE_DI;
-			res = DIP_ReadDVDVideo(outbuf, size, lba); // inlined function
+			res = DIP_ReadDVDVideo(outbuf+cnt, size, lba); // inlined function
 			/*
 			u32 tries = 0;
 			do {
@@ -153,26 +153,38 @@ int DIP_ReadDVDRom(u8 *outbuf, u32 len, u32 offset)
 }
 
 /* si retorna cero, el buffer, no esta alineado. */
-static u32 DIP_adjust_read_size(u8 *bufptr, u32 size, u32 align)
+
+// desde dip_plugin
+#define DMA1_START_ADDRESS		0x00000000
+#define DMA1_END_ADDRESS		0x01800000
+#define DMA2_START_ADDRESS		0x10000000
+#define DMA2_END_ADDRESS		0x13618000
+
+
+u32 DIP_adjust_read_size(u8 *outbuf, u32 size, u32 alignment)
 {
-	u32 buf = (u32) bufptr;
+	u32 mem;
+	int ret = 0;
 
-	//from assembler: if (buf << 27)
-	if (buf & 0x1F)  // if not aligned to 32 bytes
-		return 0;
-	
-	u32 newSize = (buf < 0x17FFFFF)? 0x1800000 - buf :  0;
+	/* Output buffer address */
+	mem  = (u32)outbuf;
 
-	if ((0xF0000000 + buf) < 0x3617FFF)
-		newSize = 0x13618000 - buf;
-	
-	if (newSize < align)
-		return 0;
+	/* Check for memory alignment */
+	if (!(mem & (0x1f))) {
+		u32 dmalen = 0;
 
-	if (newSize < size) 
-		newSize = size;
+		/* DMA1 range check */
+		if ((mem >= DMA1_START_ADDRESS) && (mem < DMA1_END_ADDRESS))
+			dmalen = (DMA1_END_ADDRESS - mem);
 
-	newSize &= ~(align - 1); // multiplo de align
-	return newSize;
-}
+		/* DMA2 range check */
+		if ((mem >= DMA2_START_ADDRESS) && (mem < DMA2_END_ADDRESS))
+			dmalen = (DMA2_END_ADDRESS - mem);
 
+		if (dmalen >= alignment)
+			ret  = (dmalen < size) ? dmalen : size;
+			ret -= (ret & (alignment-1));
+	}
+
+	return ret;
+} 
