@@ -77,73 +77,71 @@ s32 usb_read_device(u8 *outbuf, u32 size, u32 lba)
 		return -1;
 
 	// FAT Mode from Hermes
-	if(fat_mode) {
-		if(fat_mode==1 || fat_mode==2) {
-		u32 lba_glob=0;
+	if (fat_mode) {
+		if (fat_mode==1 || fat_mode==2) {
+			u32 lba_glob=0;
 	
-		if(table_lba==NULL)i
-			table_lba= (void *) os_heap_alloc_aligned(0, 2048*4, 32); // from global heap
+			if (table_lba==NULL)
+				table_lba= (void *) os_heap_alloc_aligned(0, 2048*4, 32); // from global heap
 		
-		/* Allocate memory */
-		u8 * buff = dip_alloc_aligned(0x800, 32);
-		if (!buff)
-			fat_mode=-1;
+			/* Allocate memory */
+			u8 * buff = dip_alloc_aligned(0x800, 32);
+			if (!buff)
+				fat_mode=-1;
        
-		if(fat_mode>=0) {
-			lba_glob=(16)<<9;
+			if(fat_mode>=0) {
+				lba_glob=(16)<<9;
 			
-			res=os_seek(usb_device_fd, 0, 0);
-			if(res>=0) 
-				res = os_read(usb_device_fd, buff, 2048);
-			if(res<0) {
-				fat_mode=-1;
-			} else if (!(buff[0]=='C' && buff[1]=='I' && buff[2]=='S' && buff[3]=='O'))
-				fat_mode=-1;
-		}
-	 
-		if(fat_mode>=0 && table_lba) {
-			ciso_size=(((u32)buff[4])+(((u32)buff[5])<<8)+(((u32)buff[6])<<16)+(((u32)buff[7])<<24))/4;
-			dip_memset(mem_index,0,2048);
-			for(l=0;l<16384;l++) {
-				if (((l+8) & 2047)==0 && (l+8)>=2048) {
-					if(fat_mode==2)
-						res=os_seek(usb_device_fd, (((l+8)>>11))<<9, 0);
-					else
-						res=os_seek(usb_device_fd, (((l+8)>>11))<<11, 0); // read 16 cached sectors
+				res=os_seek(usb_device_fd, 0, 0);
+				if(res>=0) 
+					res = os_read(usb_device_fd, buff, 2048);
+				if(res<0) {
+					fat_mode=-1;
+				} else if (!(buff[0]=='C' && buff[1]=='I' && buff[2]=='S' && buff[3]=='O'))
+					fat_mode=-1;
+			}
+	 		if (fat_mode>=0 && table_lba) {
+				ciso_size=(((u32)buff[4])+(((u32)buff[5])<<8)+(((u32)buff[6])<<16)+(((u32)buff[7])<<24))/4;
+				dip_memset(mem_index,0,2048);
+				for(l=0;l<16384;l++) {
+					if (((l+8) & 2047)==0 && (l+8)>=2048) {
+						if (fat_mode==2)
+							res=os_seek(usb_device_fd, (((l+8)>>11))<<9, 0);
+						else
+							res=os_seek(usb_device_fd, (((l+8)>>11))<<11, 0); // read 16 cached sectors
 
-					if(res>=0)
-						res=os_read(usb_device_fd, buff, 2048);
-					if(res<0) {
-						fat_mode=-1;
-						break;
+						if (res>=0)
+							res = os_read(usb_device_fd, buff, 2048);
+				 		if (res<0) {
+							fat_mode=-1;
+							break;
+						}
+					}
+					if ((l & 7)==0)
+						table_lba[l>>3]=lba_glob;
+				
+					if(buff[(8+l) & 2047]) {
+						mem_index[l>>3]|=1<<(l & 7);
+						lba_glob+=ciso_size;
 					}
 				}
-
-				if((l & 7)==0)
-					table_lba[l>>3]=lba_glob;
-				
-				if(buff[(8+l) & 2047]) {
-					mem_index[l>>3]|=1<<(l & 7);
-					lba_glob+=ciso_size;
+				if (fat_mode>=0) {
+					fat_mode|=4;
 				}
 			}
-			if(fat_mode>=0) {
-				fat_mode|=4;
-			}
-		}
 		
-		/* Free memory */
-		if (buff)
-			dip_free(buff);
+			/* Free memory */
+			if (buff)
+				dip_free(buff);
 		}
-		if(fat_mode>=4)	{
+		if (fat_mode>=4)	{
 			u32 temp=(lba)/ciso_size;
 			u32 read_lba=table_lba[temp>>3];
 			for(l=0;l<(temp & 7);l++)
 				if ((mem_index[temp>>3]>>l) & 1) 
 					read_lba+=ciso_size;
 			read_lba += (lba) & ((ciso_size)-1);
-			if(i fat_mode & 2) 
+			if (fat_mode & 2) 
 				os_seek(usb_device_fd, read_lba, 0);
 			else
 				os_seek(usb_device_fd, read_lba<<2, 0); // read sectors

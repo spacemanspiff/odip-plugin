@@ -28,11 +28,15 @@
 #ifdef DEBUG
 #include <debug.h>
 #endif
+
 dipstruct dip= {0};
 
 #define WII_DVD_SIGNATURE 0x5D1C9EA3
 
 #define READINFO_SIZE_DATA 32
+
+#define DIP_EIO    0xA000
+#define ERROR_WRONG_DISC  0x53100
 
 #define BCADATA_SIZE 64
 const u8 bca_bytes[BCADATA_SIZE] ATTRIBUTE_ALIGN(32) = { 
@@ -57,7 +61,6 @@ u8 mem_index[2048] __attribute__ ((aligned (32)));
 
 int read_from_device_out(void *outbuf, u32 size, u32 lba)
 {
-
 	if (dip.has_id) 
 		return usb_read_device((u8 *)outbuf, size, lba);
 
@@ -236,7 +239,7 @@ int DI_EmulateCmd(u32 *inbuf, u32 *outbuf, u32 outbuf_size)
 					 res = 0;
 				 } else 
 				 	goto call_original_di;
-				break
+				break;
 			}
 
 			case IOCTL_DI_SEEK:
@@ -251,7 +254,7 @@ int DI_EmulateCmd(u32 *inbuf, u32 *outbuf, u32 outbuf_size)
 				res = 0;
 				break;
 
-			case IOCTL_DI_STREAMING:
+			case IOCTL_DI_AUDIO_CONFIG:
 				if (!dip.dvdrom_mode &&
 					!dip.has_id) 
 					goto call_original_di;
@@ -356,8 +359,8 @@ int DI_EmulateCmd(u32 *inbuf, u32 *outbuf, u32 outbuf_size)
 			case IOCTL_DI_REPORTKEY:
 				if (!dip.dvdrom_mode && !dip.has_id) 
 					goto call_original_di;
-				res = 0xA000;
-				dip.currentError = 0x53100;
+				res = DIP_EIO;
+				dip.currentError = ERROR_WRONG_DISC;
 				break;
 
 			case IOCTL_DI_DISC_BCA: {
@@ -397,7 +400,7 @@ int DI_EmulateCmd(u32 *inbuf, u32 *outbuf, u32 outbuf_size)
 					dip.dvdrom_mode = 0;
 				break;
 			}
-			case IOCTL_DI_RESET: {
+			case IOCTL_DI_RESET:{
 				if (dip.disableReset) {
 					res = 0;
 					break;
@@ -419,7 +422,7 @@ int DI_EmulateCmd(u32 *inbuf, u32 *outbuf, u32 outbuf_size)
 				break;
 			}
 			case IOCTL_DI_UNENCREAD:
-			case IOCTL_DI_LOWREAD:
+			case IOCTL_DI_READ_A8:
 			case IOCTL_DI_READDVD: {
 				u32 offset = inbuf[2];
 				u32 len = inbuf[1];
