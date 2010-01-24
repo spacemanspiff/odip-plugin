@@ -1,0 +1,3 @@
+- Ver si se pueden eliminar las funciones en assembler (no thumbs) que
+  vuelven. Con eso el código queda más chico y ademas no cambiamos de modo
+  innecesariamente.
