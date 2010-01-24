@@ -1,0 +1,12 @@
+hook: 20001ED0
+ffs-plugin: 20007200
+
+hook: 201000CC
+es-plugin:  2010B200
+
+
+ffs-plugin:
+
+ 0x2004F9EC -> handle FAT module
+ 0x2004F9F0 -> heap alloced (for fat module ???) 0x140 bytes - 320 bytes
+ 0x2004F9F4 -> nand emulada -> 0 no, 1 sd, 2 usb

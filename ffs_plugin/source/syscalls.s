@@ -1,5 +1,5 @@
 /*
- * DIP plugin for Custom IOS.
+ * FFS plugin for Custom IOS.
  *
  * Copyright (C) 2008-2010 Waninkoko, WiiGator.
  *
