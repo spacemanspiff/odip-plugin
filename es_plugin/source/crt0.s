@@ -1,5 +1,5 @@
 /*
- * FFS plugin for Custom IOS.
+ * ES plugin for Custom IOS.
  *
  * Copyright (C) 2010 Spaceman Spiff
  *
@@ -19,7 +19,7 @@
 
 
 /*
- * FFS handlers
+ * ES handlers
  */
 	.text
 	.align 4

@@ -1,5 +1,5 @@
 /*
- * FFS plugin for Custom IOS.
+ * ES plugin for Custom IOS.
  *
  * Copyright (C) 2008-2010 Waninkoko, WiiGator.
  * Copyright (C) 2010 Spaceman Spiff.

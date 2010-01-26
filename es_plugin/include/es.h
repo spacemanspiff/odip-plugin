@@ -35,6 +35,13 @@
 #define IOCTL_ES_SEEKCONTENT          0x23
 #define IOCTL_ES_SETNANDEMULATION     0x70
 
+#define FD_MAGIC 0x10
+
+#define ES_EMU_NONE 0x00
+#define ES_EMU_SD   0x01
+#define ES_EMU_USB  0x02
+
+
 s32 handleESMsg(ipcmessage *msg);
 s32 handleESIoctlv(ipcmessage *msg);
 
