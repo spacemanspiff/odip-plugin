@@ -75,10 +75,11 @@ int FAT_Init(void)
 			fatDataPtr = os_heap_alloc_aligned(0, FAT_DATA_SIZE, FAT_DATA_ALIGN);
 
 		s32 res = os_open("fat", IPC_OPEN_NONE);
-		fatHandle = res;
 
 		if (res < 0)        // ERROR ?
 			return res;
+
+		fatHandle = res;
 	}
 	return 0;
 }

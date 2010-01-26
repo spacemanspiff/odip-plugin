@@ -22,6 +22,8 @@
 
 #define TITLEFORMAT "%s/title/%08x/%08x/content/%08x.app" 
 
+static s32 emulationType = 0;
+
 const char *devices[] = {
 	"sd:", "usb:"
 };
@@ -35,8 +37,7 @@ s32 handleESMsg(ipcmessage *msg)
 
 s32 handleESIoctlv(ipcmessage *msg)
 {
-	s32 ret;
-	s32 emulationType = *((s32 *) ES_EMU_TYPE_ADDR);
+	s32 ret = 0;
 
 	switch(msg->ioctlv.command) {
 
@@ -47,20 +48,33 @@ s32 handleESIoctlv(ipcmessage *msg)
 		//
 		break;
 
-	case IOCTL_ES_READCONTENT:
+	case IOCTL_ES_READCONTENT: {
 		if (emulationType == ES_EMU_NONE)
 			goto original_ioctlv;
-		// TODO
 
+		s32 cfd = *((s32 *) msg->ioctlv.vector[0].data);
+		u8* data = (u8 *) msg->ioctlv.vector[1].data;
+		u32 size = msg->ioctlv.vector[1].len;
+
+		if (cfd <= FD_MAGIC )
+			goto original_ioctlv;
+
+		ret = FAT_Read(cfd, data, size);
 		break;
-
-	case IOCTL_ES_SEEKCONTENT:
+	}
+	case IOCTL_ES_SEEKCONTENT: {
 		if (emulationType == ES_EMU_NONE)
 			goto original_ioctlv;
-		// TODO
 
+		s32 cfd = *((s32 *) msg->ioctlv.vector[0].data);
+		u32 where = *((u32 *) msg->ioctlv.vector[1].data);
+		u32 whence = *((u32 *) msg->ioctlv.vector[2].data);
+		if (cfd <= FD_MAGIC )
+			goto original_ioctlv;
+
+		ret = FAT_Seek(cfd, where, whence);
 		break;
-
+	}
 	case IOCTL_ES_CLOSECONTENT: {
 		if (emulationType == ES_EMU_NONE)
 			goto original_ioctlv;
