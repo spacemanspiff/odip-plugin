@@ -2,6 +2,7 @@
  * FFS plugin for Custom IOS.
  *
  * Copyright (C) 2010 Spaceman Spiff.
+ * Copyright (C) 2009-2010 Waninkoko.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -45,6 +46,12 @@
 #define IOCTL_FAT_UMOUNTSD      0xF1
 #define IOCTL_FAT_MOUNTUSB      0xF2
 #define IOCTL_FAT_UMOUNTUSB     0xF3
+
+/* Filestats structure */
+typedef struct {
+	u32 file_length;
+	u32 file_pos;
+} fstats;
 
 int FAT_Init(void);
 int FAT_FileStats(int fd, void *filestat);

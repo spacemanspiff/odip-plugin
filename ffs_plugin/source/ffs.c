@@ -2,6 +2,7 @@
  * FFS plugin for Custom IOS.
  *
  * Copyright (C) 2010 Spaceman Spiff
+ * Copyright (C) 2009-2010 Waninkoko.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +20,7 @@
 
 
 #include "ipc.h"
+#include "isfs.h"
 #include "tools.h"
 #include "ffs.h"
 #include "ffs_calls.h"
@@ -58,15 +60,15 @@ s32   FFS_Seek(s32 fd, s32 offset, s32 mode)
 	return os_seek(fd, offset, mode);
 }
 
+static u32 emulationType = 0;
 
 void preappend_nand_dev_name(const char *origname, char *newname)
 {
-	s32 type = *(( s32 *) FFS_EMU_TYPE_ADDR);
-
-	if (type == 1) 
+	if (emulationType == 1) 
 		FFS_Strcpy(newname, "sd:");
-	else if (type == 2)
+	else if (emulationType == 2)
 		FFS_Strcpy(newname, "usb:");
+
 	FFS_Strcat(newname, origname);
 }
 
@@ -74,7 +76,6 @@ s32 handleFFSOpen(ipcmessage *msg)
 {
 	char name[MAX_FILENAME_SIZE];
 	char *origname = msg->open.device;
-	s32 emulationType = *((s32 *) FFS_EMU_TYPE_ADDR);
 
 	if ((emulationType == FFS_EMU_NONE) ||
 		FFS_Strncmp(origname, "/dev/",5) == 0) 
@@ -135,7 +136,7 @@ s32 handleFFSSeek(ipcmessage *msg)
 #define OFFSET_NEW_NAME 0x40
 s32 handleFFSIoctl(ipcmessage *msg)
 {
-	s32 ret;
+	s32 ret = 0;
 
 	u32 cmd = msg->ioctl.command;
 	u32 length_io = msg->ioctl.length_io;
@@ -144,8 +145,7 @@ s32 handleFFSIoctl(ipcmessage *msg)
 
 	switch(cmd) {
 	case FFS_IOCTL_CREATEDIR: {
-		volatile s32 *emulationType = (volatile s32 *) FFS_EMU_TYPE_ADDR;
-		if (*emulationType == FFS_EMU_NONE)
+		if (emulationType == FFS_EMU_NONE)
 			goto originalIoctl;
 
 		char dirname[MAX_FILENAME_SIZE];
@@ -154,8 +154,7 @@ s32 handleFFSIoctl(ipcmessage *msg)
 		break;
 	}
 	case FFS_IOCTL_CREATEFILE: {
-		volatile s32 *emulationType = (volatile s32 *) FFS_EMU_TYPE_ADDR;
-		if (*emulationType == FFS_EMU_NONE)
+		if (emulationType == FFS_EMU_NONE)
 			goto originalIoctl;
 
 		char filename[MAX_FILENAME_SIZE];
@@ -164,8 +163,7 @@ s32 handleFFSIoctl(ipcmessage *msg)
 		break;
 	}
 	case FFS_IOCTL_DELETE: {
-		volatile s32 *emulationType = (volatile s32 *) FFS_EMU_TYPE_ADDR;
-		if (*emulationType == FFS_EMU_NONE)
+		if (emulationType == FFS_EMU_NONE)
 			goto originalIoctl;
 
 		char filename[MAX_FILENAME_SIZE];
@@ -175,8 +173,7 @@ s32 handleFFSIoctl(ipcmessage *msg)
 	}
 	case FFS_IOCTL_RENAME: {
 		u8 *names = (u8 *) buffer_in;
-		volatile s32 *emulationType = (volatile s32 *) FFS_EMU_TYPE_ADDR;
-		if (*emulationType == FFS_EMU_NONE)
+		if (emulationType == FFS_EMU_NONE)
 			goto originalIoctl;
 
 		char newname[MAX_FILENAME_SIZE];
@@ -200,34 +197,70 @@ s32 handleFFSIoctl(ipcmessage *msg)
 	case FFS_IOCTL_GETSTATS: {
 		char drive[MAX_FILENAME_SIZE];
 		struct statvfs vfsstat;
-		volatile s32 *emulationType = (volatile s32 *) FFS_EMU_TYPE_ADDR;
-		if (*emulationType == FFS_EMU_NONE)
+		if (emulationType == FFS_EMU_NONE)
 			goto originalIoctl;
 
 		preappend_nand_dev_name("/", drive);
 		ret = FAT_VFSStats(drive, &vfsstat);
 		if (ret >= 0) {
+			fsstats *s = (fsstats *) buffer_io;
 			FFS_Memset(buffer_io, 0, length_io);
-			// TODO!!! FILL the args, need to know the structures
+
+			s->block_size  = vfsstat.f_bsize;
+			s->free_blocks = vfsstat.f_bfree;
+			s->free_inodes = vfsstat.f_ffree;
+			s->used_blocks = vfsstat.f_blocks - vfsstat.f_bfree;
+
+			os_sync_after_write(buffer_io, length_io);
 		}
 
 		break;
 	}
-	case FFS_IOCTL_GETFILESTATS:
-		// TODO!
-		break;
+	case FFS_IOCTL_GETFILESTATS: {
+		if (emulationType == FFS_EMU_NONE) 
+			goto originalIoctl;
 
-	case FFS_IOCTL_GETATTR:
-		// TODO!
-		break;
+		if (msg->fd > FFS_FD_MAGIC)
+			goto originalIoctl;
 
-	case FFS_IOCTL_SETATTR:
-		// TODO!
-		break;
+		fstats *s = (fstats *) buffer_io;
 
+		ret = FAT_FileStats(msg->fd, s);
+		break;
+	}
+	case FFS_IOCTL_GETATTR: {
+		if (emulationType == FFS_EMU_NONE) 
+			goto originalIoctl;
+
+		char name[MAX_FILENAME_SIZE];
+		preappend_nand_dev_name((const char *)buffer_in, name);
+		ret = FAT_Stat(name, NULL); // if it exists, return the same permissions always
+		if (ret >= 0) {
+			fsattr *attributes = (fsattr *) buffer_io;
+			attributes->owner_id   = 0;
+			attributes->group_id   = 0;
+			attributes->attributes = 0;
+			attributes->ownerperm  = ISFS_OPEN_RW;
+			attributes->groupperm  = ISFS_OPEN_RW;
+			attributes->otherperm  = ISFS_OPEN_RW;
+
+			os_sync_after_write(buffer_io, length_io);
+			ret = 0;
+		}
+		break;
+	}
+	case FFS_IOCTL_SETATTR: {
+		if (emulationType == FFS_EMU_NONE) 
+			goto originalIoctl;
+
+		char name[MAX_FILENAME_SIZE];
+		preappend_nand_dev_name((const char *)buffer_in, name);
+
+		ret = FAT_Stat(name, NULL); // Ignore permission, success if the file exists
+		break;
+	}
 	case FFS_IOCTL_FORMAT: {
-		volatile s32 *emulationType = (volatile s32 *) FFS_EMU_TYPE_ADDR;
-		if (*emulationType == FFS_EMU_NONE)
+		if (emulationType == FFS_EMU_NONE)
 			goto originalIoctl;
 		ret = 0;
 		break;
@@ -242,8 +275,7 @@ s32 handleFFSIoctl(ipcmessage *msg)
 				FAT_DeleteDir(tmpdir);
 			}
 		}
-		volatile s32 *emulationType = (volatile s32 *) FFS_EMU_TYPE_ADDR;
-		*emulationType = state;
+		emulationType = state;
 		break;
 	}
 	originalIoctl:
@@ -262,7 +294,6 @@ s32 handleFFSIoctlv(ipcmessage *msg)
 	int ret; 
 	ioctlv *vector = msg->ioctlv.vector;
 	u32 num_io = msg->ioctlv.num_io;
-	s32 emulationType = *((s32 *) FFS_EMU_TYPE_ADDR);
 	
 	switch(msg->ioctlv.command) {
 	case FFS_IOCTLV_READDIR: {
