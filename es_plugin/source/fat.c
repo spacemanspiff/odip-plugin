@@ -58,6 +58,18 @@ typedef struct {
 		struct {
 			char data[FILESTAT_DATA_SIZE];
 		} filestats;
+		struct {
+			s32 ATTRIBUTE_ALIGN(32) cfd;
+			u32 ATTRIBUTE_ALIGN(32) where;
+			u32 ATTRIBUTE_ALIGN(32) whence;
+		} seek;
+		struct {
+			s32 ATTRIBUTE_ALIGN(32) cfd;
+		} read;
+		struct {
+			s32 ATTRIBUTE_ALIGN(32) cfd;
+		} close;
+
 	};
 } ATTRIBUTE_PACKED fat_data;
 
@@ -79,24 +91,89 @@ int FAT_Init(void)
 }
 
 
-int FAT_Seek()
+int FAT_Seek(s32 cfd, u32 where, u32 whence)
 {
-	return 0;
+	int res;
+	s32 *fathandle = (s32 *) ES_FAT_HANDLE_PTR;
+	fat_data* fatdata = (fat_data *) ES_FAT_DATA_PTR;
+
+	fatdata->seek.cfd = cfd;
+	fatdata->seek.where = where;
+	fatdata->seek.whence = whence;
+
+	fatdata->vector[0].data = &fat->seek.cfd;
+	fatdata->vector[0].len = 4;
+
+	fatdata->vector[1].data = &fat->seek.where;
+	fatdata->vector[1].len = 4;
+
+	fatdata->vector[2].data = &fat->seek.whence;
+	fatdata->vector[2].len = 4;
+
+	os_sync_after_write(fatdata, FAT_DATA_SIZE);
+
+	res = os_ioctlv(*fathandle, IOCTL_FAT_SEEK, 3, 0, fatdata->vector);
+	
+	return res;
 }
 
-int FAT_Read()
+int FAT_Read(s32 cfd, u8 *data, u32 data_size)
 {
-	return 0;
+	int res;
+	s32 *fathandle = (s32 *) ES_FAT_HANDLE_PTR;
+	fat_data* fatdata = (fat_data *) ES_FAT_DATA_PTR;
+
+	fatdata->read.cfd = cfd;
+	fatdata->vector[0].data = &fatdata->read.cfd;
+	fatdata->vector[0].len = sizeof(s32);
+
+	fatdata->vector[1].data = data;
+	fatdata->vector[1].len = data_size;
+
+
+	os_sync_after_write(fatdata, FAT_DATA_SIZE);
+
+	res = os_ioctlv(*fathandle, IOCTL_FAT_READ, 1, 1, fatdata->vector);
+	
+	return res;
 }
 
-int FAT_Close()
+int FAT_Close(s32 cfd)
 {
-	return 0;
+	int res;
+	s32 *fathandle = (s32 *) ES_FAT_HANDLE_PTR;
+	fat_data* fatdata = (fat_data *) ES_FAT_DATA_PTR;
+
+	fatdata->close.cfd = cfd;
+	fatdata->vector[0].data = &fatdata->close.cfd; 
+	fatdata->vector[0].len = sizeof(s32);
+
+	os_sync_after_write(fatdata, FAT_DATA_SIZE);
+
+	res = os_ioctlv(*fathandle, IOCTL_FAT_CLOSE, 1, 0, fatdata->vector);
+	
+	return res;
 }
 
-int FAT_Open()
+int FAT_Open(const char *filename, u32 mode)
 {
-	return 0;
-}
+	int res;
+	s32 *fathandle = (s32 *) ES_FAT_HANDLE_PTR;
+	fat_data* fatdata = (fat_data *) ES_FAT_DATA_PTR;
 
+	ES_Strcpy(fatdata->open.filename, filename);
+	fatdata->open.mode = mode;
+
+	fatdata->vector[0].data = &fatdata->open.filename; 
+	fatdata->vector[0].len = MAX_FILENAME_SIZE;
+
+	fatdata->vector[1].data = &fatdata->open.mode; 
+	fatdata->vector[1].len = sizeof(int);
+
+	os_sync_after_write(fatdata, FAT_DATA_SIZE);
+
+	res = os_ioctlv(*fathandle, IOCTL_FAT_OPEN, 2, 0, fatdata->vector);
+	
+	return res;
+}
 
