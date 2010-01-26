@@ -24,6 +24,8 @@
 
 #include "syscalls.h"
 
+#include <sys/stat.h>
+#include <sys/statvfs.h>
 
 
 #define FAT_DATA_ALIGN	0x20
@@ -51,11 +53,11 @@ typedef struct {
 		} rename;
 		struct {
 			char filename[FILENAME_SIZE];
-			char data[STAT_DATA_SIZE];  // struct stat data;
+			char data[STAT_DATA_SIZE];  // struct stat data_stat;
 		} stat;
 		struct {
 			char filename[FILENAME_SIZE];
-			char data[VFSSTAT_DATA_SIZE];
+			char data[VFSSTAT_DATA_SIZE]; // struct vfsstat vfs_stat;
 		} vfsstat;
 		struct {
 			char data[FILESTAT_DATA_SIZE];
@@ -100,7 +102,7 @@ int FAT_FileStats(int fd, void *filestat)
 	return res;
 }
 
-int FAT_VFSStats(const char *path, void *vfsstats)
+int FAT_VFSStats(const char *path, struct statvfs *vfsstats)
 {
 	int res;
 	s32 *fathandle = (s32 *) FFS_FAT_HANDLE_PTR;

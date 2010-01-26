@@ -69,7 +69,10 @@ typedef struct {
 		struct {
 			s32 ATTRIBUTE_ALIGN(32) cfd;
 		} close;
-
+		struct {
+			char filename[FILENAME_SIZE];
+			u32 mode;
+		} open;
 	};
 } ATTRIBUTE_PACKED fat_data;
 
@@ -101,13 +104,13 @@ int FAT_Seek(s32 cfd, u32 where, u32 whence)
 	fatdata->seek.where = where;
 	fatdata->seek.whence = whence;
 
-	fatdata->vector[0].data = &fat->seek.cfd;
+	fatdata->vector[0].data = &fatdata->seek.cfd;
 	fatdata->vector[0].len = 4;
 
-	fatdata->vector[1].data = &fat->seek.where;
+	fatdata->vector[1].data = &fatdata->seek.where;
 	fatdata->vector[1].len = 4;
 
-	fatdata->vector[2].data = &fat->seek.whence;
+	fatdata->vector[2].data = &fatdata->seek.whence;
 	fatdata->vector[2].len = 4;
 
 	os_sync_after_write(fatdata, FAT_DATA_SIZE);

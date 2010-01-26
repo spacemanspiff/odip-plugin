@@ -22,6 +22,9 @@
 
 #include "types.h"
 
+#include <sys/stat.h>
+#include <sys/statvfs.h>
+
 /* FAT Module IOCTL commands */
 #define IOCTL_FAT_OPEN          0x01
 #define IOCTL_FAT_CLOSE         0x02
@@ -43,11 +46,9 @@
 #define IOCTL_FAT_MOUNTUSB      0xF2
 #define IOCTL_FAT_UMOUNTUSB     0xF3
 
-#include <sys/stat.h>
-
 int FAT_Init(void);
 int FAT_FileStats(int fd, void *filestat);
-int FAT_VFSStats(const char *path, void *vfsstats);
+int FAT_VFSStats(const char *path, struct statvfs *vfsstats);
 int FAT_Stat(const char *filename, struct stat *statdata);
 int FAT_Rename(const char *oldname, const char *newname);
 int FAT_DeleteDir(const char *filename);

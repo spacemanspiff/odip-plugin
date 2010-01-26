@@ -61,8 +61,7 @@ s32   FFS_Seek(s32 fd, s32 offset, s32 mode)
 
 void preappend_nand_dev_name(const char *origname, char *newname)
 {
-	volatile s32 *emulationType = (volatile s32 *) FFS_EMU_TYPE_ADDR;
-	s32 type = *emulationType;
+	s32 type = *(( s32 *) FFS_EMU_TYPE_ADDR);
 
 	if (type == 1) 
 		FFS_Strcpy(newname, "sd:");
@@ -75,9 +74,9 @@ s32 handleFFSOpen(ipcmessage *msg)
 {
 	char name[MAX_FILENAME_SIZE];
 	char *origname = msg->open.device;
-	volatile s32 *emulationType = (volatile s32 *) FFS_EMU_TYPE_ADDR;
+	s32 emulationType = *((s32 *) FFS_EMU_TYPE_ADDR);
 
-	if ((*emulationType == FFS_EMU_NONE) ||
+	if ((emulationType == FFS_EMU_NONE) ||
 		FFS_Strncmp(origname, "/dev/",5) == 0) 
 	{
 		return handleFFSOpen(msg);
@@ -150,7 +149,7 @@ s32 handleFFSIoctl(ipcmessage *msg)
 			goto originalIoctl;
 
 		char dirname[MAX_FILENAME_SIZE];
-		preappend_nand_dev_name(buffer_in, dirname);
+		preappend_nand_dev_name((const char *) buffer_in, dirname);
 		ret = FAT_MakeDir(dirname);
 		break;
 	}
@@ -160,7 +159,7 @@ s32 handleFFSIoctl(ipcmessage *msg)
 			goto originalIoctl;
 
 		char filename[MAX_FILENAME_SIZE];
-		preappend_nand_dev_name(buffer_in, filename);
+		preappend_nand_dev_name((const char *) buffer_in, filename);
 		ret = FAT_MakeFile(filename);
 		break;
 	}
@@ -170,7 +169,7 @@ s32 handleFFSIoctl(ipcmessage *msg)
 			goto originalIoctl;
 
 		char filename[MAX_FILENAME_SIZE];
-		preappend_nand_dev_name(buffer_in, filename);
+		preappend_nand_dev_name((const char *) buffer_in, filename);
 		ret = FAT_Delete(filename);
 		break;
 	}
@@ -184,8 +183,8 @@ s32 handleFFSIoctl(ipcmessage *msg)
 		char oldname[MAX_FILENAME_SIZE];
 		struct stat filestat;
 
-		preappend_nand_dev_name(names, oldname);
-		preappend_nand_dev_name(names+OFFSET_NEW_NAME, newname);
+		preappend_nand_dev_name((const char *)names, oldname);
+		preappend_nand_dev_name((const char *) names+OFFSET_NEW_NAME, newname);
 
 		// Check if newname exists
 		if (FAT_Stat(newname, &filestat) >=0) {
@@ -200,13 +199,13 @@ s32 handleFFSIoctl(ipcmessage *msg)
 	}
 	case FFS_IOCTL_GETSTATS: {
 		char drive[MAX_FILENAME_SIZE];
-		struct vfsstats vfsstat;
+		struct statvfs vfsstat;
 		volatile s32 *emulationType = (volatile s32 *) FFS_EMU_TYPE_ADDR;
 		if (*emulationType == FFS_EMU_NONE)
 			goto originalIoctl;
 
 		preappend_nand_dev_name("/", drive);
-		ret = FAT_GetVFSStats(drive, vfsstat) >= 0;
+		ret = FAT_VFSStats(drive, &vfsstat);
 		if (ret >= 0) {
 			FFS_Memset(buffer_io, 0, length_io);
 			// TODO!!! FILL the args, need to know the structures
@@ -215,11 +214,17 @@ s32 handleFFSIoctl(ipcmessage *msg)
 		break;
 	}
 	case FFS_IOCTL_GETFILESTATS:
+		// TODO!
 		break;
+
 	case FFS_IOCTL_GETATTR:
+		// TODO!
 		break;
+
 	case FFS_IOCTL_SETATTR:
+		// TODO!
 		break;
+
 	case FFS_IOCTL_FORMAT: {
 		volatile s32 *emulationType = (volatile s32 *) FFS_EMU_TYPE_ADDR;
 		if (*emulationType == FFS_EMU_NONE)
@@ -227,6 +232,7 @@ s32 handleFFSIoctl(ipcmessage *msg)
 		ret = 0;
 		break;
 	}
+
 	case FFS_IOCTL_SETNANDEMULATION: {
 		char tmpdir[MAX_FILENAME_SIZE];
 		u32 state = buffer_in[0];
@@ -256,11 +262,11 @@ s32 handleFFSIoctlv(ipcmessage *msg)
 	int ret; 
 	ioctlv *vector = msg->ioctlv.vector;
 	u32 num_io = msg->ioctlv.num_io;
-	volatile s32 *emulationType = (volatile s32 *) FFS_EMU_TYPE_ADDR;
+	s32 emulationType = *((s32 *) FFS_EMU_TYPE_ADDR);
 	
 	switch(msg->ioctlv.command) {
 	case FFS_IOCTLV_READDIR: {
-		if (*emulationType == 0)
+		if (emulationType == 0)
 			goto handleOriginal;
 
 		char newpath[MAX_FILENAME_SIZE];
@@ -283,7 +289,7 @@ s32 handleFFSIoctlv(ipcmessage *msg)
 		break;
 	}
 	case FFS_IOCTLV_0C:
-		if (*emulationType == 0)
+		if (emulationType == 0)
 			goto handleOriginal;
 		u32 *ptr1 = (u32*) vector[1].data;
 		u32 *ptr2 = (u32*) vector[2].data;

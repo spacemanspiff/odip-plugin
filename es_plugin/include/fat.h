@@ -46,15 +46,11 @@
 #include <sys/stat.h>
 
 int FAT_Init(void);
-int FAT_FileStats(int fd, void *filestat);
-int FAT_VFSStats(const char *path, void *vfsstats);
-int FAT_Stat(const char *filename, struct stat *statdata);
-int FAT_Rename(const char *oldname, const char *newname);
-int FAT_DeleteDir(const char *filename);
-int FAT_Delete(const char *filename);
-int FAT_ReadDir(const char *dirpath, u32 *outbuf, u32 *outlen);
-int FAT_MakeFile(const char *filename);
-int FAT_MakeDir(const char *dirname);
+
+int FAT_Open(const char *filename, u32 mode);
+int FAT_Close(s32 cfd);
+int FAT_Read(s32 cfd, u8 *data, u32 data_size);
+int FAT_Seek(s32 cfd, u32 where, u32 whence);
 
 #endif
 
