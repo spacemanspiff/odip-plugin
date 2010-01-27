@@ -21,6 +21,7 @@
 #include "fat.h"
 
 #include "tools.h"
+#include "external.h"
 
 #define TITLEFORMAT "%s/title/%08x/%08x/content/%08x.app" 
 
@@ -37,8 +38,6 @@ s32 handleESMsg(ipcmessage *msg)
 	return -1;
 }
 
-#define ES_IOCTL_GETTITLEID 0x20
-
 int ES_getTitleId(u32 *titleId)
 {
 	ipcmessage msg;
@@ -49,20 +48,13 @@ int ES_getTitleId(u32 *titleId)
 	vector[0].data = &titleId;
 	vector[0].len = 8;
 
-	msg.ioctlv.command = ES_IOCTL_GETTITLEID;
+	msg.ioctlv.command = IOCTL_ES_GETTITLEID;
 	msg.ioctlv.num_in = 0;
 	msg.ioctlv.num_io = 1;
 	msg.ioctlv.vector = vector;
 	
 	// fd = 0 ??? Es correcto???
 	return ES_OriginalIoctlv(&msg);
-}
-
-void ES_snprintf(char *str, u32 size, const char *format, const char *arg1, u32 arg2, u32 arg3, u32 arg4)
-{
-	void (*f)(char *, u32, const char *, const char *, u32, u32, u32) = (void *) ES_SNPRINTF_ADDR;
-
-	(*f)(str, size, format, arg1, arg2, arg3, arg4);
 }
 
 void generateFilename(char *filename, u32 *titleId, u32 index)

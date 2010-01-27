@@ -1,10 +1,11 @@
-This is based on the ES Plugin found in the Revision 15 of the Waninkoko's
-cIOS.
+This is the Reversed Engineered ES Plugin found in the Revision 17 of the Waninkoko's cIOS.
 
-Not complete yet.
+Should be complete.
 
-------------------------------
-Puntos de Enganche:
+es-plugin loaded at base address:  2010B200
 
-hook: 201000CC            (IOS_Ioctlv)
-es-plugin:  2010B200
+Entry points:
+	201000CC	(IOS_Ioctlv)
+
+External needed by this module
+	2010979C	(snprintf)
