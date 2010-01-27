@@ -23,15 +23,30 @@
 #include "tools.h"
 #include "syscalls.h"
 
-// TODO: Implementar!!!
-
 void ES_Strcpy(char *dst, const char *src)
 {
+	u32 cnt;
+
+	/* Copy bytes */
+	for (cnt = 0; src[cnt]; cnt++)
+		dst[cnt] = src[cnt];
+
+	/* End of string */
+	dst[cnt] = 0;
+
+	/* Flush cache */
+	os_sync_after_write(dst, cnt);
 }
 
-void ES_Memcpy(void *dst, const void *src, int len)
+void ES_Memset(void *dst, char c, int len)
 {
-	//
-	//
+	u8 *ptr = (u8 *)dst;
+	u32 cnt;
+
+	/* Set bytes */
+	for (cnt = 0; cnt < len; cnt++)
+		ptr[cnt] = c;
+
+	/* Flush cache */
 	os_sync_after_write(dst, len);
 }

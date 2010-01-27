@@ -24,6 +24,6 @@
 
 /* Prototypes */
 void ES_Strcpy(char *dst, const char *src);
-void ES_Memcpy(void *dst, const void *src, int len);
+void ES_Memset(void *dst, char c, int len);
 
 #endif

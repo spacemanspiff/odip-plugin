@@ -20,6 +20,8 @@
 #include "es.h"
 #include "fat.h"
 
+#include "tools.h"
+
 #define TITLEFORMAT "%s/title/%08x/%08x/content/%08x.app" 
 
 static s32 emulationType = 0;
@@ -35,19 +37,66 @@ s32 handleESMsg(ipcmessage *msg)
 	return -1;
 }
 
+#define ES_IOCTL_GETTITLEID 0x20
+
+int ES_getTitleId(u32 *titleId)
+{
+	ipcmessage msg;
+	ioctlv vector[8];
+	
+	ES_Memset(&msg, 0, sizeof(ipcmessage));
+	
+	vector[0].data = &titleId;
+	vector[0].len = 8;
+
+	msg.ioctlv.command = ES_IOCTL_GETTITLEID;
+	msg.ioctlv.num_in = 0;
+	msg.ioctlv.num_io = 1;
+	msg.ioctlv.vector = vector;
+	
+	// fd = 0 ??? Es correcto???
+	return ES_OriginalIoctlv(&msg);
+}
+
+
+void ES_snprintf(char *str, u32 size, const char *format, const char *arg1, u32 arg2, u32 arg3, u32 arg4)
+{
+	void (*f)(char *, u32, const char *, const char *, u32, u32, u32) = (void *) ES_SNPRINTF_ADDR;
+
+	(*f)(str, size, format, arg1, arg2, arg3, arg4);
+}
+
+void generateFilename(char *filename, u32 *titleId, u32 index)
+{
+	const char *device = (emulationType == ES_EMU_USB || emulationType == ES_EMU_SD)?devices[emulationType-1]:NULL;
+
+	ES_snprintf(filename, MAX_FILENAME_SIZE, TITLEFORMAT, device, *titleId, *(titleId+1), index);
+}
+
+
 s32 handleESIoctlv(ipcmessage *msg)
 {
 	s32 ret = 0;
 
 	switch(msg->ioctlv.command) {
 
-	case IOCTL_ES_OPENCONTENT:
+	case IOCTL_ES_OPENCONTENT: {
 		if (emulationType == ES_EMU_NONE)
 			goto original_ioctlv;
-		// TODO
-		//
-		break;
 
+		u32 index = *((s32 *) msg->ioctlv.vector[0].data);
+		char filename[MAX_FILENAME_SIZE];
+		u32 titleId[2];
+
+		if (ES_getTitleId(titleId) <= 0) 
+			goto original_ioctlv;
+
+		generateFilename(filename, titleId, index);
+		ret = FAT_Open(filename, IPC_OPEN_READ);
+		if (ret < 0)
+			goto original_ioctlv;
+		break;
+	}
 	case IOCTL_ES_READCONTENT: {
 		if (emulationType == ES_EMU_NONE)
 			goto original_ioctlv;
@@ -92,7 +141,7 @@ s32 handleESIoctlv(ipcmessage *msg)
 			if (ret < 0) 
 				break;
 		}
-		*((s32 *) ES_EMU_TYPE_ADDR) = nandEmu;
+		emulationType = nandEmu;
 		ret = 0;
 		break;
 	}
