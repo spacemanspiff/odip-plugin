@@ -65,11 +65,11 @@ static u32 emulationType = 0;
 void preappend_nand_dev_name(const char *origname, char *newname)
 {
 	if (emulationType == 1) 
-		FFS_Strcpy(newname, "sd:");
+		Strcpy(newname, "sd:");
 	else if (emulationType == 2)
-		FFS_Strcpy(newname, "usb:");
+		Strcpy(newname, "usb:");
 
-	FFS_Strcat(newname, origname);
+	Strcat(newname, origname);
 }
 
 s32 handleFFSOpen(ipcmessage *msg)
@@ -78,7 +78,7 @@ s32 handleFFSOpen(ipcmessage *msg)
 	char *origname = msg->open.device;
 
 	if ((emulationType == FFS_EMU_NONE) ||
-		FFS_Strncmp(origname, "/dev/",5) == 0) 
+		Strncmp(origname, "/dev/",5) == 0) 
 	{
 		return handleFFSOpen(msg);
 	}
@@ -204,7 +204,7 @@ s32 handleFFSIoctl(ipcmessage *msg)
 		ret = FAT_VFSStats(drive, &vfsstat);
 		if (ret >= 0) {
 			fsstats *s = (fsstats *) buffer_io;
-			FFS_Memset(buffer_io, 0, length_io);
+			Memset(buffer_io, 0, length_io);
 
 			s->block_size  = vfsstat.f_bsize;
 			s->free_blocks = vfsstat.f_bfree;

@@ -51,6 +51,7 @@
 #define FAT_DATA_ALIGN	0x20
 #define FAT_DATA_SIZE 	(sizeof(fat_data)) //0x140
 
+#define MAX_FILENAME_SIZE 	256
 #define FILENAME_SIZE 		0x60
 #define STAT_DATA_SIZE		(sizeof(struct stat))
 #define VFSSTAT_DATA_SIZE	(sizeof(struct statvfs))

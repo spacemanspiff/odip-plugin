@@ -1,6 +1,7 @@
 /*
- * FFS plugin for Custom IOS.
+ * ES / FFS plugin for Custom IOS.
  *
+ * Copyright (C) 2009-2010 Waninkoko.
  * Copyright (C) 2010 Spaceman Spiff.
  *
  * This program is free software: you can redistribute it and/or modify
@@ -23,10 +24,10 @@
 #include "types.h"
 
 /* Prototypes */
-int FFS_Strncmp(const char*str1, const char *str2, int size);
-void FFS_Strcpy(char *dst, const char *src);
-void FFS_Strcat(char *str1, const char *str2);
-void FFS_Memcpy(void *dst, const void *src, int len);
-void FFS_Memset(void *buf, u8 val, u32 len);
+void Strcpy(char *dst, const char *src);
+void Memset(void *dst, u8 c, u32 len);
+int Strncmp(const char*str1, const char *str2, int size);
+void Strcat(char *str1, const char *str2);
+void Memcpy(void *dst, const void *src, int len);
 
 #endif

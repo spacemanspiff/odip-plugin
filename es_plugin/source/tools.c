@@ -23,7 +23,7 @@
 #include "tools.h"
 #include "syscalls.h"
 
-void ES_Strcpy(char *dst, const char *src)
+void Strcpy(char *dst, const char *src)
 {
 	u32 cnt;
 
@@ -38,15 +38,61 @@ void ES_Strcpy(char *dst, const char *src)
 	os_sync_after_write(dst, cnt);
 }
 
-void ES_Memset(void *dst, char c, int len)
+int Strncmp(const char*str1, const char *str2, int size)
 {
-	u8 *ptr = (u8 *)dst;
+	u32 cnt;
+
+	/* Compare bytes */
+	for (cnt = 0; cnt < size; cnt++) {
+		if (str1[cnt] < str2[cnt])
+			return -1;
+		if (str1[cnt] > str2[cnt])
+			return  1;
+
+		/* End of string */
+		if (!str1[cnt] || !str2[cnt])
+			break;
+	}
+
+	return 0;
+}
+
+void Strcat(char *str1, const char *str2)
+{
+	u32 cnt;
+
+	/* Find end of string character */
+	for (cnt = 0; str1[cnt]; cnt++);
+
+	/* Copy string */
+	Strcpy(str1 + cnt, str2);
+}
+
+void Memcpy(void *dst, const void *src, int len)
+{
+	u8 *s = (u8 *)src;
+	u8 *d = (u8 *)dst;
+
+	u32 cnt;
+
+	/* Copy bytes */
+	for (cnt = 0; cnt < len; cnt++)
+		d[cnt] = s[cnt];
+
+	/* Flush cache */
+	os_sync_after_write(dst, len);
+}
+
+
+void Memset(void *buf, u8 val, u32 len)
+{
+	u8 *ptr = (u8 *)buf;
 	u32 cnt;
 
 	/* Set bytes */
 	for (cnt = 0; cnt < len; cnt++)
-		ptr[cnt] = c;
+		ptr[cnt] = val;
 
 	/* Flush cache */
-	os_sync_after_write(dst, len);
+	os_sync_after_write(buf, len);
 }

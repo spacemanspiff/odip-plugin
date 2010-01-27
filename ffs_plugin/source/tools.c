@@ -1,5 +1,5 @@
 /*
- * FFS plugin for Custom IOS.
+ * ES plugin for Custom IOS.
  *
  * Copyright (C) 2008-2010 Waninkoko, WiiGator.
  * Copyright (C) 2010 Spaceman Spiff.
@@ -23,7 +23,22 @@
 #include "tools.h"
 #include "syscalls.h"
 
-int FFS_Strncmp(const char*str1, const char *str2, int size)
+void Strcpy(char *dst, const char *src)
+{
+	u32 cnt;
+
+	/* Copy bytes */
+	for (cnt = 0; src[cnt]; cnt++)
+		dst[cnt] = src[cnt];
+
+	/* End of string */
+	dst[cnt] = 0;
+
+	/* Flush cache */
+	os_sync_after_write(dst, cnt);
+}
+
+int Strncmp(const char*str1, const char *str2, int size)
 {
 	u32 cnt;
 
@@ -42,22 +57,7 @@ int FFS_Strncmp(const char*str1, const char *str2, int size)
 	return 0;
 }
 
-void FFS_Strcpy(char *dst, const char *src)
-{
-	u32 cnt;
-
-	/* Copy bytes */
-	for (cnt = 0; src[cnt]; cnt++)
-		dst[cnt] = src[cnt];
-
-	/* End of string */
-	dst[cnt] = 0;
-
-	/* Flush cache */
-	os_sync_after_write(dst, cnt);
-}
-
-void FFS_Strcat(char *str1, const char *str2)
+void Strcat(char *str1, const char *str2)
 {
 	u32 cnt;
 
@@ -65,10 +65,10 @@ void FFS_Strcat(char *str1, const char *str2)
 	for (cnt = 0; str1[cnt]; cnt++);
 
 	/* Copy string */
-	FFS_Strcpy(str1 + cnt, str2);
+	Strcpy(str1 + cnt, str2);
 }
 
-void FFS_Memcpy(void *dst, const void *src, int len)
+void Memcpy(void *dst, const void *src, int len)
 {
 	u8 *s = (u8 *)src;
 	u8 *d = (u8 *)dst;
@@ -84,7 +84,7 @@ void FFS_Memcpy(void *dst, const void *src, int len)
 }
 
 
-void FFS_Memset(void *buf, u8 val, u32 len)
+void Memset(void *buf, u8 val, u32 len)
 {
 	u8 *ptr = (u8 *)buf;
 	u32 cnt;

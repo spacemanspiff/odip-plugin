@@ -1,6 +1,7 @@
 /*
- * ES plugin for Custom IOS.
+ * ES / FFS plugin for Custom IOS.
  *
+ * Copyright (C) 2009-2010 Waninkoko.
  * Copyright (C) 2010 Spaceman Spiff.
  *
  * This program is free software: you can redistribute it and/or modify
@@ -23,7 +24,10 @@
 #include "types.h"
 
 /* Prototypes */
-void ES_Strcpy(char *dst, const char *src);
-void ES_Memset(void *dst, char c, int len);
+void Strcpy(char *dst, const char *src);
+void Memset(void *dst, u8 c, u32 len);
+int Strncmp(const char*str1, const char *str2, int size);
+void Strcat(char *str1, const char *str2);
+void Memcpy(void *dst, const void *src, int len);
 
 #endif

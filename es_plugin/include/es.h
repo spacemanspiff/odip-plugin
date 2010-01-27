@@ -23,8 +23,6 @@
 #include "types.h"
 #include "ipc.h"
 
-#define MAX_FILENAME_SIZE    256
-
 #define IOCTL_ES_OPENCONTENT          0x09
 #define IOCTL_ES_READCONTENT          0x0A
 #define IOCTL_ES_CLOSECONTENT         0x0B

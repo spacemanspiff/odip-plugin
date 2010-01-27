@@ -43,7 +43,7 @@ int ES_getTitleId(u32 *titleId)
 	ipcmessage msg;
 	ioctlv vector[8];
 	
-	ES_Memset(&msg, 0, sizeof(ipcmessage));
+	Memset(&msg, 0, sizeof(ipcmessage));
 	
 	vector[0].data = &titleId;
 	vector[0].len = 8;
