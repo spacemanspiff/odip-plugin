@@ -223,7 +223,7 @@ s32 handleFFSIoctl(ipcmessage *msg)
 		if (msg->fd > FFS_FD_MAGIC)
 			goto originalIoctl;
 
-		fstats *s = (fstats *) buffer_io;
+		struct fstats *s = (struct fstats *) buffer_io;
 
 		ret = FAT_FileStats(msg->fd, s);
 		break;

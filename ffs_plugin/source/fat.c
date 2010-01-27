@@ -21,52 +21,10 @@
 #include "ffs.h"
 
 #include "tools.h"
-
 #include "syscalls.h"
 
-#include <sys/stat.h>
-#include <sys/statvfs.h>
-
-#define FAT_DATA_ALIGN	0x20
-#define FAT_DATA_SIZE 	(sizeof(fat_data)) 
-
-#define FILENAME_SIZE 		0x60
-#define STAT_DATA_SIZE		(sizeof(struct stat))
-#define VFSSTAT_DATA_SIZE	(sizeof(struct statvfs))
-#define FILESTAT_DATA_SIZE	0x08
-
-// Make Aligned...
-typedef struct {
-	ioctlv vector[8];
-	union {
-		struct {
-			char filename[FILENAME_SIZE];
-		} basic;
-		struct {
-			char filename[FILENAME_SIZE];
-			int outlen;
-		} readdir;
-		struct {
-			char oldfilename[FILENAME_SIZE];
-			char newfilename[FILENAME_SIZE];
-		} rename;
-		struct {
-			char filename[FILENAME_SIZE];
-			struct stat data_stat;
-		} stat;
-		struct {
-			char filename[FILENAME_SIZE];
-			struct statvfs stat_vfs;
-		} statvfs;
-		struct {
-			char data[FILESTAT_DATA_SIZE];
-		} filestats;
-	};
-} ATTRIBUTE_PACKED fat_data;
-
 static fat_data *fatDataPtr = NULL;
-
-s32 fatHandle = 0;
+static s32 fatHandle = 0;
 
 int FAT_Init(void)
 {
@@ -88,7 +46,7 @@ int FAT_FileStats(int fd, void *filestat)
 {
 	int res;
 
-	fatDataPtr->vector[0].data = fatDataPtr->filestats.data;
+	fatDataPtr->vector[0].data = (u32 *) &fatDataPtr->filestats.data;
 	fatDataPtr->vector[0].len = FILESTAT_DATA_SIZE;
 
 	os_sync_after_write(fatDataPtr, FAT_DATA_SIZE);
@@ -96,7 +54,7 @@ int FAT_FileStats(int fd, void *filestat)
 	res = os_ioctlv(fatHandle, IOCTL_FAT_FILESTATS, 0, 1, fatDataPtr->vector);
 
 	if (res >= 0){
-		FFS_Memcpy(filestat, fatDataPtr->filestats.data, FILESTAT_DATA_SIZE);
+		FFS_Memcpy(filestat, &fatDataPtr->filestats.data, FILESTAT_DATA_SIZE);
 	}
 	return res;
 }
@@ -105,12 +63,12 @@ int FAT_VFSStats(const char *path, struct statvfs *vfsstats)
 {
 	int res;
 
-	FFS_Strcpy(fatDataPtr->statvfs.filename, path);
+	FFS_Strcpy(fatDataPtr->vfsstat.filename, path);
 
-	fatDataPtr->vector[0].data = fatDataPtr->statvfs.filename;
+	fatDataPtr->vector[0].data = fatDataPtr->vfsstat.filename;
 	fatDataPtr->vector[0].len = MAX_FILENAME_SIZE;
 
-	fatDataPtr->vector[1].data = (u32 *) &fatDataPtr->statvfs.stat_vfs;
+	fatDataPtr->vector[1].data = (u32 *) &fatDataPtr->vfsstat.stat_vfs;
 	fatDataPtr->vector[1].len = VFSSTAT_DATA_SIZE;
 
 	os_sync_after_write(fatDataPtr, FAT_DATA_SIZE);
@@ -118,7 +76,7 @@ int FAT_VFSStats(const char *path, struct statvfs *vfsstats)
 	res = os_ioctlv(fatHandle, IOCTL_FAT_VFSSTATS, 1, 1, fatDataPtr->vector);
 	
 	if (res >= 0) 
-		FFS_Memcpy(vfsstats,(void *) &fatDataPtr->statvfs.stat_vfs, VFSSTAT_DATA_SIZE);
+		FFS_Memcpy(vfsstats,(void *) &fatDataPtr->vfsstat.stat_vfs, VFSSTAT_DATA_SIZE);
 
 	return res;
 }

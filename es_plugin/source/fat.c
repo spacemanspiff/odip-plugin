@@ -17,68 +17,12 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 #include "fat.h"
-#include "ipc.h"
 #include "es.h"
-
 #include "tools.h"
-
 #include "syscalls.h"
 
-#define FAT_DATA_ALIGN	0x20
-#define FAT_DATA_SIZE 	(sizeof(fat_data)) //0x140
-
-#define FILENAME_SIZE 		0x60
-#define STAT_DATA_SIZE		0x44       //(sizeof(struct stat))
-#define VFSSTAT_DATA_SIZE	0x2C
-#define FILESTAT_DATA_SIZE	0x08
-
-// Make Aligned...
-typedef struct {
-	ioctlv vector[8];
-	union {
-		struct {
-			char filename[FILENAME_SIZE];
-		} basic;
-		struct {
-			char filename[FILENAME_SIZE];
-			int outlen;
-		} readdir;
-		struct {
-			char oldfilename[FILENAME_SIZE];
-			char newfilename[FILENAME_SIZE];
-		} rename;
-		struct {
-			char filename[FILENAME_SIZE];
-			char data[STAT_DATA_SIZE];  // struct stat data;
-		} stat;
-		struct {
-			char filename[FILENAME_SIZE];
-			char data[VFSSTAT_DATA_SIZE];
-		} vfsstat;
-		struct {
-			char data[FILESTAT_DATA_SIZE];
-		} filestats;
-		struct {
-			s32 ATTRIBUTE_ALIGN(32) cfd;
-			u32 ATTRIBUTE_ALIGN(32) where;
-			u32 ATTRIBUTE_ALIGN(32) whence;
-		} seek;
-		struct {
-			s32 ATTRIBUTE_ALIGN(32) cfd;
-		} read;
-		struct {
-			s32 ATTRIBUTE_ALIGN(32) cfd;
-		} close;
-		struct {
-			char filename[FILENAME_SIZE];
-			u32 mode;
-		} open;
-	};
-} ATTRIBUTE_PACKED fat_data;
-
 static fat_data *fatDataPtr = NULL;
-
-s32 fatHandle = 0;
+static s32 fatHandle = 0;
 
 int FAT_Init(void)
 {
