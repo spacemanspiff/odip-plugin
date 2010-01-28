@@ -96,3 +96,29 @@ void Memset(void *buf, u8 val, u32 len)
 	/* Flush cache */
 	os_sync_after_write(buf, len);
 }
+
+#define nible2hex(x)       (((x) < 10)?('0'+(x)):('A'+(x)-10))
+#define high(x)   (((x) & 0xf0) >> 4)
+#define low(x)   ((x) & 0xf)
+
+char  *Int2hex(char *str, u32 n)
+{
+	char *buf = str;
+	u8 *c = (u8 *) &n;
+
+	if (!buf)
+		return NULL;
+
+	*(buf++) = nible2hex(high(c[0]));
+	*(buf++) = nible2hex(low(c[0]));
+	*(buf++) = nible2hex(high(c[1]));
+	*(buf++) = nible2hex(low(c[1]));
+	*(buf++) = nible2hex(high(c[2]));
+	*(buf++) = nible2hex(low(c[2]));
+	*(buf++) = nible2hex(high(c[3]));
+	*(buf++) = nible2hex(low(c[3]));
+	*(buf++) = 0;
+
+	return buf;
+}
+

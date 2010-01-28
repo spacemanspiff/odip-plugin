@@ -57,11 +57,24 @@ int ES_getTitleId(u32 *titleId)
 	return ES_OriginalIoctlv(&msg);
 }
 
+
 void generateFilename(char *filename, u32 *titleId, u32 index)
 {
 	const char *device = (emulationType == ES_EMU_USB || emulationType == ES_EMU_SD)?devices[emulationType-1]:NULL;
 
+#ifdef USE_EXTERNALS
 	ES_snprintf(filename, MAX_FILENAME_SIZE, TITLEFORMAT, device, *titleId, *(titleId+1), index);
+#else
+	char buf[10];
+	Strcpy(filename, device);
+	Strcat(filename, "/title/");
+	Strcat(filename, Int2hex(buf, *titleId));
+	Strcat(filename, Int2hex(buf, *(titleId+1)));
+	Strcat(filename, "/");
+	Strcat(filename, Int2hex(buf, index));
+	Strcat(filename, "/content/");
+	Strcat(filename, ".app");
+#endif
 }
 
 s32 handleESIoctlv(ipcmessage *msg)

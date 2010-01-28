@@ -30,4 +30,5 @@ int Strncmp(const char*str1, const char *str2, int size);
 void Strcat(char *str1, const char *str2);
 void Memcpy(void *dst, const void *src, int len);
 
+char  *Int2hex(char *buf, u32 n);
 #endif
