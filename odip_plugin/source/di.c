@@ -24,11 +24,11 @@
 
 #define DVDIO_SIZE 32
 
-#define DVDIO_ADDR     0xD006000
-#define SECTORSIZE     2048
+#define DVDIO_ADDR 0xD006000
+#define SECTORSIZE 2048
 #define MAX_SIZE_DI   (0xFF << 15)
 
-static u32 DIP_checkRegion(u8 *buf, u32 size, u32 align);
+static u32 DIP_adjust_read_size(u8 *buf, u32 size, u32 align);
 
 int DIP_StopMotor(void)
 {
@@ -76,16 +76,21 @@ int DIP_ReadDVDVideo(void *dst, u32 len, u32 lba)
 }
 
 
-int DIP_ReadDVD(void *dst, u32 len, u32 offset)
+int DIP_ReadDVD(void *dst, u32 len, u32 sector)
 {
 	u32 inbuf[8];
-
-	inbuf[0] = IOCTL_DI_READ_A8 << 24; 
+	int res;
+	int tries = 0;
+    do {
+	inbuf[0] = IOCTL_DI_LOWREAD << 24; // IOCTL_DI_LOWREAD A8
 	inbuf[1] = len;
-	inbuf[2] = offset;
+	inbuf[2] = sector;
 
 	os_sync_before_read(dst, len);
-	return handleDiCommand(inbuf, dst, len);
+	res =handleDiCommand(inbuf, dst, len);
+	tries++;
+	} while (res  && tries < 8);
+	return res;
 }
 
 
@@ -106,7 +111,7 @@ int DIP_ReadDVDRom(u8 *outbuf, u32 len, u32 offset)
 
 		skip = (offset > (lba << 9)) ? (offset - (lba << 9)) << 2 : 0;
 
-		res = DIP_checkRegion(outbuf+ cnt, size, SECTORSIZE);
+		res = DIP_adjust_read_size(outbuf+ cnt, size, SECTORSIZE);
 
 		if (skip || !res) {
 			if ((skip + size) > SECTORSIZE) 
@@ -125,7 +130,22 @@ int DIP_ReadDVDRom(u8 *outbuf, u32 len, u32 offset)
 			size = res;
 			if (size >= MAX_SIZE_DI)
 				size = MAX_SIZE_DI;
-			res = DIP_ReadDVDVideo(outbuf+cnt, size, lba);
+			res = DIP_ReadDVDVideo(outbuf+cnt, size, lba); // inlined function
+			/*
+			u32 tries = 0;
+			do {
+				u32 inbuf[8];
+
+				inbuf[0] = IOCTL_DI_READDVD << 24;
+				inbuf[1] = 0;
+				inbuf[2] = 0;
+				inbuf[3] = size >> 11;
+				inbuf[4] = lba;
+				os_sync_before_read(outbuf, size);
+				res = handleDiCommand(inbuf, (u32 *) outbuf, size);
+				tries = tries + 1;
+			} while (res != 0 && tries < 15);
+			*/
 		}
 
 		if (res) 
@@ -137,14 +157,16 @@ int DIP_ReadDVDRom(u8 *outbuf, u32 len, u32 offset)
 	return res;
 }
 
+/* si retorna cero, el buffer, no esta alineado. */
+
 // desde dip_plugin
 #define DMA1_START_ADDRESS		0x00000000
 #define DMA1_END_ADDRESS		0x01800000
 #define DMA2_START_ADDRESS		0x10000000
 #define DMA2_END_ADDRESS		0x13618000
 
-/* Check if the region is DMA friendly, if not return 0 */
-u32 DIP_checkRegion(u8 *outbuf, u32 size, u32 alignment)
+
+u32 DIP_adjust_read_size(u8 *outbuf, u32 size, u32 alignment)
 {
 	u32 mem;
 	int ret = 0;
@@ -171,4 +193,3 @@ u32 DIP_checkRegion(u8 *outbuf, u32 size, u32 alignment)
 
 	return ret;
 } 
-

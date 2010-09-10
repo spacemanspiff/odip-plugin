@@ -28,7 +28,7 @@
 #define IOCTL_DI_OPENPART       0x8B
 #define IOCTL_DI_CLOSEPART      0x8C
 #define IOCTL_DI_UNENCREAD	0x8D
-#define IOCTL_DI_READ_A8	0xA8
+#define IOCTL_DI_LOWREAD	0xA8
 #define IOCTL_DI_SEEK		0xAB
 #define IOCTL_DI_REPORTKEY      0xA4
 #define IOCTL_DI_READDVD	0xD0
@@ -37,7 +37,7 @@
 #define IOCTL_DI_DISC_BCA       0xDA
 #define IOCTL_DI_REQERROR	0xE0
 #define IOCTL_DI_STOPMOTOR	0xE3
-#define IOCTL_DI_AUDIO_CONFIG   0xE4
+#define IOCTL_DI_STREAMING	0xE4
 
 #define IOCTL_DI_SETBASE        0xF0
 #define IOCTL_DI_GETBASE        0xF1
@@ -47,6 +47,10 @@
 #define IOCTL_DI_GETUSBMODE     0xF5
 #define IOCTL_DI_DISABLERESET   0xF6
 #define IOCTL_DI_CUSTOMCMD	0xFF
+
+#define IOCTL_DI_FRAG_SET		0xF9
+#define IOCTL_DI_MODE_GET		0xFA
+#define IOCTL_DI_HELLO			0xFB
 
 #define IOCTL_DI_13             0x13
 #define IOCTL_DI_14             0x14
@@ -69,6 +73,7 @@ typedef struct {
 	u32 currentError; // offset 0x20
 	u8 disableReset;
 	u8 reading;
+	u8 frag_mode;
 } __attribute__((packed)) dipstruct;
 
 extern dipstruct dip;
